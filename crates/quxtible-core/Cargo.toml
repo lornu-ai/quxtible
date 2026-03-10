@@ -19,3 +19,4 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 sqlx = { workspace = true }
 regex = "1.10"
+reqwest = { workspace = true }
