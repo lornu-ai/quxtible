@@ -1,6 +1,8 @@
 mod config;
 mod error;
 mod handlers;
+mod health;
+mod metrics;
 mod state;
 mod validation;
 
@@ -78,11 +80,21 @@ async fn main() -> anyhow::Result<()> {
 
             // Build router with all endpoints
             let app = Router::new()
+                // Health endpoints (for K8s probes)
                 .route("/healthz", axum::routing::get(handlers::healthz))
+                .route("/health", axum::routing::get(health::health_check))
+                .route("/ready", axum::routing::get(health::readiness_check))
+                .route("/live", axum::routing::get(health::liveness_check))
+
+                // Optimization endpoints
                 .route("/optimize", post(handlers::optimize_query))
                 .route("/estimate-cost", post(handlers::estimate_cost))
                 .route("/refine", post(handlers::refine_query))
                 .route("/batch-optimize", post(handlers::batch_optimize))
+
+                // Observability endpoints
+                .route("/metrics", axum::routing::get(handlers::get_metrics))
+
                 .layer(CorsLayer::permissive())
                 .layer(TraceLayer::new_for_http())
                 .with_state(Arc::new(state));
@@ -92,13 +104,22 @@ async fn main() -> anyhow::Result<()> {
 
             info!("✅ Quxtible listening on http://{}", addr);
             info!("📋 Available endpoints:");
-            info!("  GET  /healthz              - Health check");
-            info!("  POST /optimize              - Full optimization pipeline (all phases)");
-            info!("  POST /estimate-cost         - Phase 1: Cost estimation (EXPLAIN)");
-            info!("  POST /refine                - Phase 2: LLM refinement (Claude)");
-            info!("  POST /batch-optimize        - Phase 3: Batch optimization (multi-agent)");
             info!("");
-            info!("  Phase 4 (Autonomous Tuning) runs as part of /optimize pipeline");
+            info!("Health & Observability:");
+            info!("  GET  /healthz              - Quick health check");
+            info!("  GET  /health               - Detailed component status");
+            info!("  GET  /ready                - Kubernetes readiness probe");
+            info!("  GET  /live                 - Kubernetes liveness probe");
+            info!("  GET  /metrics              - Performance metrics (JSON)");
+            info!("");
+            info!("Optimization Endpoints:");
+            info!("  POST /optimize              - Full pipeline (all 4 phases)");
+            info!("  POST /estimate-cost         - Phase 1: Cost estimation");
+            info!("  POST /refine                - Phase 2: LLM refinement");
+            info!("  POST /batch-optimize        - Phase 3: Batch optimization");
+            info!("");
+            info!("  Phase 4 (Autonomous Tuning) integrated into /optimize pipeline");
+            info!("");
 
             axum::serve(listener, app).await?;
             Ok(())

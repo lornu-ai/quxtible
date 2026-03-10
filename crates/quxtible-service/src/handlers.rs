@@ -1,6 +1,7 @@
 //! HTTP request handlers for optimization endpoints
 
 use crate::error::{ApiError, ApiResult};
+use crate::metrics::Metrics;
 use crate::state::AppState;
 use axum::{extract::State, Json};
 use quxtible_core::types::{
@@ -204,6 +205,12 @@ pub async fn optimize_query(
 
     info!("✅ Optimization complete: {:?}", result.status);
     Ok(Json(result))
+}
+
+/// Metrics endpoint - returns JSON metrics
+pub async fn get_metrics(State(state): State<Arc<AppState>>) -> Json<crate::metrics::MetricsSnapshot> {
+    info!("📊 Metrics requested");
+    Json(state.metrics.snapshot())
 }
 
 /// Helper: Extract table names from SQL (simple heuristic)
