@@ -1,5 +1,6 @@
 //! Application state with initialized optimization components
 
+use crate::config::AppConfig;
 use quxtible_core::{
     database::{create_connector, DatabaseConnector},
     phase1_cost_estimation::GenericCostEstimator,
@@ -11,6 +12,7 @@ use quxtible_core::{
 use std::sync::Arc;
 
 pub struct AppState {
+    pub config: AppConfig,
     pub database: Arc<dyn DatabaseConnector>,
     pub cost_estimator: Arc<GenericCostEstimator>,
     pub query_optimizer: Arc<ClaudeQueryOptimizer>,
@@ -19,35 +21,35 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(
-        database_url: &str,
-        database_type: DatabaseType,
-        claude_api_key: &str,
-        claude_model: &str,
-    ) -> anyhow::Result<Self> {
+    pub async fn new(config: AppConfig) -> anyhow::Result<Self> {
         // Initialize database connector
-        let database = create_connector(database_type, database_url).await?;
+        let database = create_connector(DatabaseType::PostgreSQL, &config.database.url).await?;
 
-        // Initialize cost estimator
+        // Initialize cost estimator with configured thresholds
         let cost_estimator = Arc::new(GenericCostEstimator::new(
             database.clone(),
-            1000.0,  // cost threshold
-            100.0,   // time threshold (ms)
+            config.optimization.cost_threshold,
+            config.optimization.time_threshold_ms,
         ));
 
         // Initialize query optimizer (LLM-based)
         let query_optimizer = Arc::new(ClaudeQueryOptimizer::new(
-            claude_api_key.to_string(),
-            claude_model.to_string(),
+            config.llm.api_key.clone(),
+            config.llm.model.clone(),
         ));
 
-        // Initialize batch optimizer
-        let batch_optimizer = Arc::new(BatchOptimizer::with_threshold(0.7));
+        // Initialize batch optimizer with configured threshold
+        let batch_optimizer = Arc::new(BatchOptimizer::with_threshold(
+            config.optimization.batch_similarity_threshold,
+        ));
 
-        // Initialize tuning advisor (RL-based learning agent)
-        let tuning_advisor = Arc::new(tokio::sync::Mutex::new(TuningAdvisor::new(1000)));
+        // Initialize tuning advisor with configured history size
+        let tuning_advisor = Arc::new(tokio::sync::Mutex::new(TuningAdvisor::new(
+            config.optimization.tuning_history_size,
+        )));
 
         Ok(Self {
+            config,
             database,
             cost_estimator,
             query_optimizer,
