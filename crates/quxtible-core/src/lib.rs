@@ -9,7 +9,7 @@
 pub mod phase1_cost_estimation;
 pub mod phase2_llm_refinement;
 pub mod phase3_batch_optimization;
-pub mod phase4_db_tuning;
+pub mod phase4_autonomous_tuning;
 pub mod database;
 pub mod types;
 

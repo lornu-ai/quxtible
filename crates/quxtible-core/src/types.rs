@@ -111,7 +111,7 @@ pub struct TuningRecommendation {
     pub priority: Priority,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TuningType {
     CreateIndex,
     ModifyPartition,
