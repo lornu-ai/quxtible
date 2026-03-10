@@ -27,6 +27,11 @@ pub async fn estimate_cost(
     State(state): State<Arc<AppState>>,
     Json(request): Json<QueryRequest>,
 ) -> ApiResult<Json<CostEstimate>> {
+    use crate::validation::validate_query_request;
+
+    // Validate request
+    validate_query_request(&request, state.config.server.max_request_body_bytes)?;
+
     info!("💰 Estimating cost for query: {}", request.nl_query);
 
     let estimate = state
@@ -51,6 +56,11 @@ pub async fn refine_query(
     State(state): State<Arc<AppState>>,
     Json(request): Json<QueryRequest>,
 ) -> ApiResult<Json<QueryRefinement>> {
+    use crate::validation::validate_query_request;
+
+    // Validate request
+    validate_query_request(&request, state.config.server.max_request_body_bytes)?;
+
     info!("🤖 Refining query with LLM: {}", request.nl_query);
 
     // Optionally get EXPLAIN feedback for better optimization
@@ -83,6 +93,11 @@ pub async fn batch_optimize(
     State(state): State<Arc<AppState>>,
     Json(requests): Json<Vec<QueryRequest>>,
 ) -> ApiResult<Json<quxtible_core::types::BatchQueryPlan>> {
+    use crate::validation::validate_batch_requests;
+
+    // Validate requests
+    validate_batch_requests(&requests, state.config.server.max_request_body_bytes)?;
+
     info!("📦 Optimizing batch of {} queries", requests.len());
 
     let batch_plan = state
@@ -110,6 +125,11 @@ pub async fn optimize_query(
     State(state): State<Arc<AppState>>,
     Json(request): Json<QueryRequest>,
 ) -> ApiResult<Json<OptimizationResult>> {
+    use crate::validation::validate_query_request;
+
+    // Validate request
+    validate_query_request(&request, state.config.server.max_request_body_bytes)?;
+
     info!("🔄 Full optimization pipeline for: {}", request.nl_query);
 
     // Phase 1: Cost Estimation

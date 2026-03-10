@@ -6,6 +6,7 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use std::fmt;
 use tracing::error;
 
 #[derive(Debug)]
@@ -74,3 +75,16 @@ impl IntoResponse for ApiError {
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiError::NotImplemented => write!(f, "Not implemented"),
+            ApiError::DatabaseConnection(msg) => write!(f, "Database connection error: {}", msg),
+            ApiError::QueryExecution(msg) => write!(f, "Query execution error: {}", msg),
+            ApiError::Optimization(msg) => write!(f, "Optimization error: {}", msg),
+            ApiError::InvalidRequest(msg) => write!(f, "Invalid request: {}", msg),
+            ApiError::Internal(msg) => write!(f, "Internal error: {}", msg),
+        }
+    }
+}
