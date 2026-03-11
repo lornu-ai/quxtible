@@ -43,6 +43,8 @@ async fn main() -> anyhow::Result<()> {
 
             // Log database configuration
             info!("Database Configuration:");
+            info!("  • Type: {}", cfg.database.database_type.to_uppercase());
+            info!("  • URL: {}", cfg.database.url);
             info!("  • Max Connections: {}", cfg.database.max_connections);
             info!("  • Min Connections: {}", cfg.database.min_connections);
 

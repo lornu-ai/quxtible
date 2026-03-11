@@ -24,8 +24,16 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(config: AppConfig) -> anyhow::Result<Self> {
+        // Determine database type from config
+        let db_type = match config.database.database_type.to_lowercase().as_str() {
+            "postgresql" | "postgres" => DatabaseType::PostgreSQL,
+            "mysql" => DatabaseType::MySQL,
+            "surrealdb" | "surreal" => DatabaseType::SurrealDB,
+            other => return Err(anyhow::anyhow!("Unknown database type: {}", other)),
+        };
+
         // Initialize database connector
-        let database = create_connector(DatabaseType::PostgreSQL, &config.database.url).await?;
+        let database = create_connector(db_type, &config.database.url).await?;
 
         // Initialize cost estimator with configured thresholds
         let cost_estimator = Arc::new(GenericCostEstimator::new(

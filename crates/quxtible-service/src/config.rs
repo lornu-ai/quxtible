@@ -31,6 +31,7 @@ pub struct ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseConfig {
     pub url: String,
+    pub database_type: String,  // "postgresql", "mysql", or "surrealdb"
     pub max_connections: u32,
     pub min_connections: u32,
     pub connection_timeout_secs: u64,
@@ -87,7 +88,9 @@ impl AppConfig {
             },
             database: DatabaseConfig {
                 url: env::var("DATABASE_URL")
-                    .unwrap_or_else(|_| "postgresql://localhost/quxtible".to_string()),
+                    .unwrap_or_else(|_| "surreal://localhost:8000".to_string()),
+                database_type: env::var("DATABASE_TYPE")
+                    .unwrap_or_else(|_| "surrealdb".to_string()),
                 max_connections: env::var("DB_MAX_CONNECTIONS")
                     .unwrap_or_else(|_| "10".to_string())
                     .parse()
