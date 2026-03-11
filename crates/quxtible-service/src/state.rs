@@ -1,6 +1,7 @@
 //! Application state with initialized optimization components
 
 use crate::config::AppConfig;
+use crate::metrics::Metrics;
 use quxtible_core::{
     database::{create_connector, DatabaseConnector},
     phase1_cost_estimation::GenericCostEstimator,
@@ -18,6 +19,7 @@ pub struct AppState {
     pub query_optimizer: Arc<ClaudeQueryOptimizer>,
     pub batch_optimizer: Arc<BatchOptimizer>,
     pub tuning_advisor: Arc<tokio::sync::Mutex<TuningAdvisor>>,
+    pub metrics: Metrics,
 }
 
 impl AppState {
@@ -55,6 +57,7 @@ impl AppState {
             query_optimizer,
             batch_optimizer,
             tuning_advisor,
+            metrics: Metrics::new(),
         })
     }
 }
