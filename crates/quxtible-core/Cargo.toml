@@ -21,3 +21,4 @@ sqlx = { workspace = true }
 surrealdb = { workspace = true }
 regex = "1.10"
 reqwest = { workspace = true }
+urlencoding = { workspace = true }

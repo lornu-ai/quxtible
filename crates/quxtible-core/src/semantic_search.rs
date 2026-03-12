@@ -128,11 +128,109 @@ impl RAGContext {
         }
     }
 
-    /// Integration point: would call oxidizedRAG to extract context
-    pub async fn from_query(_sql: &str) -> anyhow::Result<Self> {
-        // TODO: Call oxidizedRAG API
-        // rag_client.extract_context(sql).await
-        Ok(Self::empty())
+    /// Call oxidizedRAG API to extract code context and optimization patterns
+    ///
+    /// Makes HTTP request to oxidizedRAG server (default: http://localhost:8080)
+    /// to semantically search for code patterns related to the SQL query.
+    /// Falls back gracefully if service is unavailable.
+    pub async fn from_query(sql: &str) -> anyhow::Result<Self> {
+        let rag_url = std::env::var("OXIDIZED_RAG_URL")
+            .unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+        // Try to call oxidizedRAG; fall back to empty context if unavailable
+        match Self::query_oxidized_rag(&rag_url, sql).await {
+            Ok(context) => Ok(context),
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to query oxidizedRAG at {}: {}. Using empty context.",
+                    rag_url,
+                    e
+                );
+                Ok(Self::empty())
+            }
+        }
+    }
+
+    /// Internal: Query oxidizedRAG API
+    async fn query_oxidized_rag(rag_url: &str, sql: &str) -> anyhow::Result<Self> {
+        let client = reqwest::Client::new();
+
+        // Construct query endpoint
+        let query_endpoint = format!("{}?query={}&top_k=5",
+            rag_url.trim_end_matches('/'),
+            urlencoding::encode(sql)
+        );
+
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            client.get(&query_endpoint).send()
+        ).await??;
+
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "oxidizedRAG query failed: {} {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
+        }
+
+        let query_response: serde_json::Value = response.json().await?;
+
+        // Extract results from response
+        let mut code_context = Vec::new();
+        let mut patterns = Vec::new();
+
+        if let Some(results) = query_response.get("results").and_then(|r| r.as_array()) {
+            for result in results {
+                // Extract code snippet from result
+                if let Some(excerpt) = result.get("excerpt").and_then(|e| e.as_str()) {
+                    code_context.push(excerpt.to_string());
+                }
+
+                // Extract pattern from document title or metadata
+                if let Some(title) = result.get("title").and_then(|t| t.as_str()) {
+                    if !title.is_empty() {
+                        patterns.push(format!("Pattern: {}", title));
+                    }
+                }
+            }
+        }
+
+        // Generate optimization suggestions based on retrieved context
+        let suggestions = Self::generate_suggestions(&code_context);
+
+        Ok(Self {
+            code_context,
+            patterns,
+            suggestions,
+        })
+    }
+
+    /// Generate optimization suggestions based on code context
+    fn generate_suggestions(code_context: &[String]) -> Vec<String> {
+        let mut suggestions = Vec::new();
+
+        // Analyze context for common patterns
+        let context_str = code_context.join(" ");
+
+        if context_str.contains("INDEX") || context_str.contains("index") {
+            suggestions.push("Consider creating an index on the filtered columns".to_string());
+        }
+
+        if context_str.contains("JOIN") || context_str.contains("join") {
+            suggestions.push("Optimize JOIN conditions - ensure indexed join keys".to_string());
+        }
+
+        if context_str.contains("GROUP BY") || context_str.contains("group by") {
+            suggestions.push("Materialize aggregation results for frequently used groupings".to_string());
+        }
+
+        if context_str.contains("SUBQUERY") || context_str.contains("subquery") ||
+           context_str.contains("(SELECT") || context_str.contains("(select") {
+            suggestions.push("Consider converting subqueries to CTEs for better optimization".to_string());
+        }
+
+        suggestions
     }
 }
 
